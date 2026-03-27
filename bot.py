@@ -74,11 +74,10 @@ def callback_query(call):
     url = user_links.get(call.message.chat.id)
     if not url: return
 
-    bot.delete_message(call.message.chat.id, call.message.message_id)
-    status = bot.send_message(call.message.chat.id, "⏳ Jarayon boshlandi...")
-
     try:
         if call.data == "video":
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+            status = bot.send_message(call.message.chat.id, "⏳ Video yuklanmoqda...")
             ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4', 'quiet': True}
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
@@ -88,11 +87,13 @@ def callback_query(call):
             bot.delete_message(call.message.chat.id, status.message_id)
             
         elif call.data == "audio":
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+            status = bot.send_message(call.message.chat.id, "⏳ Musiqa qidirilmoqda...")
             asyncio.run(recognize_and_download(url, call.message.chat.id, status.message_id))
             bot.delete_message(call.message.chat.id, status.message_id)
 
     except Exception as e:
-        bot.send_message(call.message.chat.id, f"❌ Xatolik: {e}")
+        bot.send_message(call.message.chat.id, f"❌ Xatolik yuz berdi: {e}")
 
 if __name__ == "__main__":
     bot.infinity_polling()
