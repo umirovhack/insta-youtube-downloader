@@ -2,4 +2,3 @@ pyTelegramBotAPI
 yt-dlp
 shazamio==0.4.0
 aiohttp
-pyaudioop-fixed
