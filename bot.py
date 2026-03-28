@@ -2,14 +2,13 @@ import telebot
 import google.generativeai as genai
 import os
 import PIL.Image
-from telebot import types
 
 # --- SOZLAMALAR ---
-# Telegram Bot Token
+# Telegram Bot Token (BotFather'dan olingan)
 TELEGRAM_TOKEN = '8322130528:AAEerleOyHrAQIdx7B16pV3BBZqN6fTZdf8'
 
-# Gemini API Key
-GEMINI_API_KEY = 'AIzaSyDih1CxOtnxqYOSM2CuBUVjYs_eYhWzRuI'
+# Yangi Gemini API Key (Siz nusxalagan kalit)
+GEMINI_API_KEY = 'AIzaSyDYIulq1NMUajVsLPrrHa7USQSC72jzdeU'
 
 # Bot va AI'ni sozlash
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
@@ -23,9 +22,9 @@ def start(message):
         f"🌟 **Assalomu alaykum, {message.from_user.first_name}!**\n\n"
         "Men **@um1rov77** tomonidan yaratilgan aqlli AI botman! 🤖\n\n"
         "✨ **Nimalar qila olaman?**\n"
-        "💬 **Savol-javob:** Xohlagan mavzuda savol bering, javob beraman.\n"
-        "🖼 **Rasm tahlili:** Menga rasm yuboring va u haqida so'rang.\n"
-        "💻 **Dasturlash:** Kod yozishda va xatolarni topishda yordam beraman."
+        "💬 **Savol-javob:** Menga xohlagan savolingizni yozing.\n"
+        "🖼 **Rasm tahlili:** Rasm yuboring, uni tushuntirib beraman.\n"
+        "💻 **Dasturlash:** C, Flutter va boshqa tillarda yordam beraman."
     )
     bot.send_message(message.chat.id, welcome_text, parse_mode="Markdown")
 
@@ -36,7 +35,7 @@ def handle_message(message):
 
     # 1. AGAR RASM YUBORILSA
     if message.content_type == 'photo':
-        status = bot.send_message(chat_id, "🧐 _Rasmni tahlil qilyapman..._", parse_mode="Markdown")
+        status = bot.send_message(chat_id, "🧐 _Rasmni ko'ryapman..._", parse_mode="Markdown")
         try:
             # Rasmni yuklab olish
             file_info = bot.get_file(message.photo[-1].file_id)
@@ -48,20 +47,23 @@ def handle_message(message):
             
             # AI orqali tahlil qilish
             img = PIL.Image.open(temp_path)
-            prompt = message.caption if message.caption else "Ushbu rasmda nima borligini tushuntirib ber."
+            prompt = message.caption if message.caption else "Bu rasmda nima borligini tushuntirib ber."
             response = model.generate_content([prompt, img])
             
             # Javobni yuborish
             bot.edit_message_text(response.text, chat_id, status.message_id)
             
-            # Vaqtincha faylni o'chirish
+            # Faylni o'chirish
             if os.path.exists(temp_path):
                 os.remove(temp_path)
         except Exception as e:
-            bot.edit_message_text("❌ Rasmni tahlil qilishda xatolik yuz berdi.", chat_id, status.message_id)
+            bot.edit_message_text(f"❌ Xatolik: {str(e)}", chat_id, status.message_id)
 
     # 2. AGAR MATNLI SAVOL YUBORILSA
     elif message.content_type == 'text':
+        # Start buyrug'ini o'tkazib yuboramiz
+        if message.text.startswith('/'): return
+
         status = bot.send_message(chat_id, "🤖 _O'ylayapman..._", parse_mode="Markdown")
         try:
             # AI'ga savolni yuborish
@@ -70,7 +72,8 @@ def handle_message(message):
             # Javobni yuborish
             bot.edit_message_text(response.text, chat_id, status.message_id)
         except Exception as e:
-            bot.edit_message_text("❌ Kechirasiz, hozir javob bera olmayman. Keyinroq urinib ko'ring.", chat_id, status.message_id)
+            bot.edit_message_text(f"❌ Kechirasiz, xato yuz berdi: {str(e)}", chat_id, status.message_id)
 
 if __name__ == "__main__":
+    print("Bot ishga tushdi...")
     bot.infinity_polling()
