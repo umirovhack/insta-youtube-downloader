@@ -1,3 +1,4 @@
 pyTelegramBotAPI
 google-generativeai
+yt-dlp
 Pillow
