@@ -1,70 +1,114 @@
 import telebot
-import google.generativeai as genai
-import os
-import PIL.Image
-import time
+from telebot import types
 
 # --- SOZLAMALAR ---
-# 1. Telegram Bot Token (Yangi olingan token)
-TELEGRAM_TOKEN = '8322130528:AAGMPhK9p1sT5kSJMntqOXwZFt2UcjPx4Nk'
+TOKEN = '8322130528:AAGMPhK9p1sT5kSJMntqOXwZFt2UcjPx4Nk'
+bot = telebot.TeleBot(TOKEN)
 
-# 2. Gemini API Key
-GEMINI_API_KEY = 'AIzaSyDYIulq1NMUajVsLPrrHa7USQSC72jzdeU'
+# --- FULL SAVOLLAR BAZASI ---
+quiz_data = {
+    "Matematika": {
+        "Oson": [
+            {"q": "5 + 7 = ?", "a": "12", "o": ["10", "12", "15", "11"]},
+            {"q": "100 / 4 = ?", "a": "25", "o": ["20", "25", "30", "50"]},
+            {"q": "25 * 3 = ?", "a": "75", "o": ["70", "75", "80", "65"]},
+            {"q": "81 ning ildizi nechchi?", "a": "9", "o": ["7", "8", "9", "10"]}
+        ],
+        "O'rta": [
+            {"q": "12^2 necha?", "a": "144", "o": ["122", "144", "169", "100"]},
+            {"q": "x + 15 = 40; x = ?", "a": "25", "o": ["15", "25", "30", "20"]},
+            {"q": "Doira yuzi formulasi?", "a": "πr²", "o": ["2πr", "πr²", "2r", "πd"]}
+        ],
+        "Qiyin": [
+            {"q": "log2(32) = ?", "a": "5", "o": ["4", "5", "6", "3"]},
+            {"q": "sin(30°) = ?", "a": "0.5", "o": ["0", "1", "0.5", "0.8"]}
+        ]
+    },
+    "Kimyo": {
+        "Oson": [
+            {"q": "Suvning formulasi?", "a": "H2O", "o": ["CO2", "H2O", "O2", "H2"]},
+            {"q": "Osh tuzi?", "a": "NaCl", "o": ["NaCl", "KCl", "HCl", "NaOH"]}
+        ],
+        "O'rta": [
+            {"q": "Oltinning kimyoviy belgisi?", "a": "Au", "o": ["Ag", "Au", "Fe", "Al"]},
+            {"q": "Uglerod nechanchi valentli?", "a": "4", "o": ["2", "3", "4", "1"]}
+        ],
+        "Qiyin": [
+            {"q": "Sulfat kislota formulasi?", "a": "H2SO4", "o": ["H2SO3", "H2SO4", "HCl", "HNO3"]}
+        ]
+    },
+    "Fizika": {
+        "Oson": [
+            {"q": "Tezlik birligi?", "a": "m/s", "o": ["kg", "m/s", "N", "J"]},
+            {"q": "Kuch birligi?", "a": "Nyuton", "o": ["Vatt", "Joul", "Nyuton", "Pa"]}
+        ],
+        "O'rta": [
+            {"q": "Bosim formulasi?", "a": "P=F/S", "o": ["P=m/V", "P=F/S", "P=UI", "P=mg"]}
+        ]
+    },
+    "Tarix": {
+        "Oson": [
+            {"q": "Amir Temur tug'ilgan yil?", "a": "1336", "o": ["1336", "1342", "1405", "1300"]},
+            {"q": "O'zbekiston mustaqilligi?", "a": "1991", "o": ["1990", "1991", "1992", "1989"]}
+        ],
+        "O'rta": [
+            {"q": "Zahiriydin Muhammad Bobur qayerda tug'ilgan?", "a": "Andijon", "o": ["Samarqand", "Andijon", "Farg'ona", "Hirot"]}
+        ]
+    },
+    "Biologiya": {
+        "Oson": [
+            {"q": "Odamda nechta buyrak bor?", "a": "2", "o": ["1", "2", "3", "4"]},
+            {"q": "Fotosintez organi?", "a": "Barg", "o": ["Ildiz", "Barg", "Poya", "Gul"]}
+        ]
+    }
+}
 
-# Bot va AI'ni sozlash
-bot = telebot.TeleBot(TELEGRAM_TOKEN)
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('models/gemini-1.5-flash')
-
-# --- START BUYRUG'I ---
+# --- BOT FUNKSIYALARI ---
 @bot.message_handler(commands=['start'])
 def start(message):
-    welcome_text = (
-        f"🌟 **Assalomu alaykum, {message.from_user.first_name}!**\n\n"
-        "Men **@um1rov77** tomonidan yaratilgan aqlli AI botman! 🤖\n\n"
-        "💬 Savol yozing yoki rasm yuboring, javob beraman!"
-    )
-    bot.send_message(message.chat.id, welcome_text, parse_mode="Markdown")
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    subjects = list(quiz_data.keys())
+    markup.add(*subjects)
+    bot.send_message(message.chat.id, "🌟 **TASHMI Quiz Botga xush kelibsiz!**\n\nYo'nalishni tanlang:", reply_markup=markup, parse_mode="Markdown")
 
-# --- XABARLARNI QAYTA ISHLASH ---
-@bot.message_handler(content_types=['text', 'photo'])
-def handle_message(message):
-    chat_id = message.chat.id
-    
-    if message.content_type == 'photo':
-        status = bot.send_message(chat_id, "🧐 _Rasmni tahlil qilyapman..._", parse_mode="Markdown")
-        try:
-            file_info = bot.get_file(message.photo[-1].file_id)
-            downloaded = bot.download_file(file_info.file_path)
-            temp_path = f"img_{chat_id}.jpg"
-            
-            with open(temp_path, "wb") as f:
-                f.write(downloaded)
-            
-            img = PIL.Image.open(temp_path)
-            prompt = message.caption if message.caption else "Bu rasmda nima borligini tushuntirib ber."
-            response = model.generate_content([prompt, img])
-            
-            bot.edit_message_text(response.text, chat_id, status.message_id)
-            if os.path.exists(temp_path): os.remove(temp_path)
-        except Exception as e:
-            bot.edit_message_text(f"❌ Xatolik: {str(e)}", chat_id, status.message_id)
+@bot.message_handler(func=lambda m: m.text in quiz_data.keys())
+def choose_level(message):
+    subject = message.text
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add(f"{subject}: Oson", f"{subject}: O'rta", f"{subject}: Qiyin", "Orqaga")
+    bot.send_message(message.chat.id, f"📊 {subject} darajasini tanlang:", reply_markup=markup)
 
-    elif message.content_type == 'text':
-        if message.text.startswith('/'): return
-        status = bot.send_message(chat_id, "🤖 _O'ylayapman..._", parse_mode="Markdown")
-        try:
-            response = model.generate_content(message.text)
-            bot.edit_message_text(response.text, chat_id, status.message_id)
-        except Exception as e:
-            bot.edit_message_text(f"❌ Xato: {str(e)}", chat_id, status.message_id)
+@bot.message_handler(func=lambda m: ":" in m.text)
+def start_quiz(message):
+    try:
+        subject, level = message.text.split(": ")
+        if subject in quiz_data and level in quiz_data[subject]:
+            questions = quiz_data[subject][level]
+            for item in questions:
+                markup = types.InlineKeyboardMarkup()
+                options = item['o']
+                for opt in options:
+                    # Callback_data orqali javobni tekshiramiz
+                    is_correct = "✅" if opt == item['a'] else "❌"
+                    markup.add(types.InlineKeyboardButton(text=opt, callback_data=f"res_{is_correct}_{opt}"))
+                bot.send_message(message.chat.id, f"❓ {item['q']}", reply_markup=markup)
+        else:
+            bot.send_message(message.chat.id, "⚠️ Savollar topilmadi.")
+    except:
+        bot.send_message(message.chat.id, "⚠️ Xatolik yuz berdi.")
 
-# --- KONFLIKTNI OLIB TASHLASH VA ISHGA TUSHIRISH ---
+@bot.callback_query_handler(func=lambda call: call.data.startswith('res_'))
+def handle_answer(call):
+    _, result, val = call.data.split('_')
+    bot.answer_callback_query(call.id, f"Sizning javobingiz: {val}")
+    bot.edit_message_text(chat_id=call.message.chat.id, 
+                          message_id=call.message.message_id, 
+                          text=f"{call.message.text}\n\n{result} Javob: {val}")
+
+@bot.message_handler(func=lambda m: m.text == "Orqaga")
+def back(message):
+    start(message)
+
 if __name__ == "__main__":
-    print("Bot ishga tushdi...")
-    # Telegram-dagi eski ulanishlarni o'chirish (Muhim!)
     bot.remove_webhook()
-    time.sleep(1) 
-    
-    # Render port xatosini chetlab o'tish uchun infinity polling
-    bot.infinity_polling(timeout=20, long_polling_timeout=10)
+    bot.infinity_polling()
