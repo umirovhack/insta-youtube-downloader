@@ -74,4 +74,17 @@ def handle_all(message):
     elif text == "=":
         try:
             res = eval(user_data[cid].replace('^', '**'))
-            bot.send_message(cid, f"
+            bot.send_message(cid, f"🔢 Natija: `{res}`", parse_mode="Markdown")
+            user_data[cid] = str(res)
+        except:
+            bot.send_message(cid, "❌ Xato! Misolni tekshiring.")
+            user_data[cid] = ""
+
+    elif text in "0123456789+-*/.":
+        user_data[cid] += text
+        # Har bir raqam bosilganda hozirgi holatni ko'rsatib turish
+        bot.send_message(cid, f"📝 `{user_data[cid]}`", parse_mode="Markdown")
+
+if __name__ == "__main__":
+    bot.remove_webhook()
+    bot.infinity_polling()
