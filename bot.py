@@ -3,7 +3,7 @@ from telebot import types
 from deep_translator import GoogleTranslator
 
 # BOT TOKEN
-TOKEN = "8322130528:AAGMPhK9p1sT5kSJMntqOXwZFt2UcjPx4Nk"
+TOKEN = "8322130528:AAGgtExfH17TbsCfGxL2Rdrg6o_5wOXNRFg"
 bot = telebot.TeleBot(TOKEN)
 
 # Asosiy menyu
