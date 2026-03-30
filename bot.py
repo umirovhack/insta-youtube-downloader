@@ -1,58 +1,55 @@
 import telebot
-from telebot import types
-from deep_translator import GoogleTranslator
+from googletrans import Translator
 
-# BOT TOKEN
-TOKEN = "8322130528:AAGgtExfH17TbsCfGxL2Rdrg6o_5wOXNRFg"
+# 1. Botingiz ma'lumotlari
+TOKEN = '8322130528:AAGgtExfH17TbsCfGxL2Rdrg6o_5wOXNRFg'
 bot = telebot.TeleBot(TOKEN)
+translator = Translator()
 
-# Asosiy menyu
-def main_menu():
-    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    btn1 = types.KeyboardButton("🇺🇿 O'zbekcha -> Inglizcha")
-    btn2 = types.KeyboardButton("🇬🇧 Inglizcha -> O'zbekcha")
-    btn3 = types.KeyboardButton("🇷🇺 Ruscha -> O'zbekcha")
-    markup.add(btn1, btn2, btn3)
-    return markup
+print("Bot ishga tushdi...")
 
-# Holatni saqlash (qaysi tildan qaysi tilga tarjima qilinayotganini bilish uchun)
-user_lang = {}
-
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.send_message(
-        message.chat.id, 
-        f"Salom {message.from_user.first_name}!\nMen aqlli Tarjimon botman. Qaysi yo'nalishda tarjima qilamiz?", 
-        reply_markup=main_menu()
-    )
-
-@bot.message_handler(func=lambda message: message.text in ["🇺🇿 O'zbekcha -> Inglizcha", "🇬🇧 Inglizcha -> O'zbekcha", "🇷🇺 Ruscha -> O'zbekcha"])
-def set_direction(message):
-    if "O'zbekcha -> Inglizcha" in message.text:
-        user_lang[message.chat.id] = ('uz', 'en')
-    elif "Inglizcha -> O'zbekcha" in message.text:
-        user_lang[message.chat.id] = ('en', 'uz')
-    elif "Ruscha -> O'zbekcha" in message.text:
-        user_lang[message.chat.id] = ('ru', 'uz')
-    
-    bot.send_message(message.chat.id, "Endi tarjima qilinishi kerak bo'lgan matnni yuboring:")
-
-@bot.message_handler(func=lambda message: True)
-def translate_text(message):
-    chat_id = message.chat.id
-    
-    # Agar foydalanuvchi yo'nalish tanlamagan bo'lsa, avtomatik aniqlash (Auto-detect)
-    if chat_id not in user_lang:
-        src, dest = 'auto', 'uz'
-    else:
-        src, dest = user_lang[chat_id]
-
+# 2. Tarjima funksiyasi (Universal)
+def get_translation(text):
     try:
-        translated = GoogleTranslator(source=src, target=dest).translate(message.text)
-        bot.reply_to(message, f"✨ **Tarjima:**\n\n{translated}", parse_mode="Markdown")
+        # Tilni aniqlaymiz
+        detection = translator.detect(text)
+        src_lang = detection.lang
+        
+        # Agar ingliz yoki rus tili bo'lsa, o'zbekchaga o'giramiz
+        if src_lang in ['ru', 'en']:
+            dest_lang = 'uz'
+        # Agar o'zbekcha bo'lsa, ruscha yoki inglizchaga (ixtiyoriy, bu yerda ruscha)
+        else:
+            dest_lang = 'ru'
+            
+        result = translator.translate(text, dest=dest_lang)
+        return result.text
     except Exception as e:
-        bot.send_message(chat_id, "❌ Tarjimada xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.")
+        return f"Xatolik yuz berdi: {e}"
 
+# 3. Matn, Rasm va Video uchun yagona handler
+@bot.message_handler(content_types=['text', 'photo', 'video'])
+def handle_all_messages(message):
+    # Matnni aniqlash (oddiy matn yoki media izohi)
+    text_to_translate = ""
+    
+    if message.content_type == 'text':
+        text_to_translate = message.text
+    elif message.content_type in ['photo', 'video']:
+        text_to_translate = message.caption
+
+    # Agar tarjima qilish uchun matn bo'lsa
+    if text_to_translate:
+        translated_text = get_translation(text_to_translate)
+        
+        # Javobni chiroyli ko'rinishda qaytarish
+        response = f"📝 **Tarjima:**\n\n{translated_text}"
+        bot.reply_to(message, response, parse_mode="Markdown")
+    else:
+        # Agar rasm yoki videoda yozuv bo'lmasa
+        if message.content_type != 'text':
+            bot.reply_to(message, "Bu medianing izohi yo'q, tarjima qila olmayman. 🧐")
+
+# 4. Botni to'xtovsiz ishlatish
 if __name__ == "__main__":
-    print("Translate bot ishlamoqda...")
     bot.infinity_polling()
