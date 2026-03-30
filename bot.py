@@ -1,90 +1,97 @@
 import telebot
 from telebot import types
-import requests
-import math
 
-# --- SOZLAMALAR ---
-TOKEN = '8322130528:AAGMPhK9p1sT5kSJMntqOXwZFt2UcjPx4Nk'
+# BOT TOKENINGIZ
+TOKEN = "8322130528:AAGMPhK9p1sT5kSJMntqOXwZFt2UcjPx4Nk"
 bot = telebot.TeleBot(TOKEN)
 
-# Foydalanuvchi yozayotgan misolni saqlash uchun
-user_data = {}
-
-# --- TUGMALAR ---
+# Asosiy menyu tugmalari
 def main_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    markup.add("🔢 Kalkulyator", "💵 Valyuta kursi")
-    markup.add("🕌 Namoz vaqtlari", "☁️ Ob-havo")
+    markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    btn1 = types.KeyboardButton("🔍 Kino Qidirish")
+    btn2 = types.KeyboardButton("🎬 Asl Media")
+    btn3 = types.KeyboardButton("📺 Yangi TV")
+    btn4 = types.KeyboardButton("ℹ️ Ma'lumot")
+    markup.add(btn1, btn2, btn3, btn4)
     return markup
 
-def calc_keyboard():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row("7", "8", "9", "/")
-    markup.row("4", "5", "6", "*")
-    markup.row("1", "2", "3", "-")
-    markup.row("0", "C", "=", "+")
-    markup.row("🔙 Orqaga")
-    return markup
-
-# --- API FUNKSIYALAR ---
-def get_currency():
-    try:
-        res = requests.get("https://cbu.uz/uz/arkhiv-kursov-valyut/json/").json()
-        usd = res[0]['Rate']
-        return f"🇺🇸 1 USD = {usd} so'm\n🇪🇺 1 EUR = {res[1]['Rate']} so'm\n🗓 Sana: {res[0]['Date']}"
-    except: return "⚠️ Kursni olib bo'lmadi."
-
-def get_prayer_times():
-    # Toshkent uchun namunaviy vaqtlar (Real API ulamoqchi bo'lsangiz ayting)
-    return "📍 Toshkent vaqti (Taxminiy):\n🏙 Bamdod: 05:08\n☀️ Quyosh: 06:14\n Peshin: 12:28\n🌇 Asr: 16:51\n🌆 Shom: 18:44\n🌃 Xufton: 20:01"
-
-# --- ASOSIY MANTIQ ---
+# /start komandasi
 @bot.message_handler(commands=['start'])
-def start(message):
-    user_data[message.chat.id] = ""
-    bot.send_message(message.chat.id, "🌟 **Umirov Utility Bot**ga xush kelibsiz!\n\nKerakli bo'limni tanlang:", reply_markup=main_menu(), parse_mode="Markdown")
+def send_welcome(message):
+    welcome_text = (
+        f"👋 Assalomu alaykum, {message.from_user.first_name}!\n\n"
+        "🎬 **UmirovKino** botiga xush kelibsiz!\n"
+        "Bu yerda siz eng sara kinolarni o'zbek tilida topishingiz mumkin.\n\n"
+        "👇 Kerakli bo'limni tanlang:"
+    )
+    bot.send_message(message.chat.id, welcome_text, reply_markup=main_menu(), parse_mode="Markdown")
 
-@bot.message_handler(func=lambda m: True)
-def handle_all(message):
-    cid = message.chat.id
-    text = message.text
+# 🔍 Kino Qidirish (Umumiy)
+@bot.message_handler(func=lambda message: message.text == "🔍 Kino Qidirish")
+def search_start(message):
+    msg = bot.send_message(message.chat.id, "🎬 Qidirilayotgan kino nomini kiriting:")
+    bot.register_next_step_handler(msg, process_general_search)
 
-    if cid not in user_data: user_data[cid] = ""
+def process_general_search(message):
+    movie_name = message.text
+    # Google orqali qidiruv linki (Uzmovi, i-kino va h.k. uchun)
+    search_url = f"https://www.google.com/search?q={movie_name.replace(' ', '+')}+o'zbek+tilida+skachat+yoki+ko'rish"
+    
+    markup = types.InlineKeyboardMarkup()
+    btn = types.InlineKeyboardButton("🌐 Google'dan natijalarni ko'rish", url=search_url)
+    markup.add(btn)
+    
+    bot.send_message(message.chat.id, f"🔎 **{movie_name}** kinosi bo'yicha qidiruv natijalari tayyor:", reply_markup=markup, parse_mode="Markdown")
 
-    if text == "🔢 Kalkulyator":
-        user_data[cid] = ""
-        bot.send_message(cid, "Misolni kiritishni boshlang:", reply_markup=calc_keyboard())
-    
-    elif text == "💵 Valyuta kursi":
-        bot.send_message(cid, get_currency())
-    
-    elif text == "🕌 Namoz vaqtlari":
-        bot.send_message(cid, get_prayer_times())
-    
-    elif text == "☁️ Ob-havo":
-        bot.send_message(cid, "🌤 Toshkentda hozir +24°C, havo ochiq.\nBugun yog'ingarchilik kutilmaydi.")
-    
-    elif text == "🔙 Orqaga":
-        bot.send_message(cid, "Asosiy menyuga qaytdingiz:", reply_markup=main_menu())
-    
-    elif text == "C":
-        user_data[cid] = ""
-        bot.send_message(cid, "📝 Tozalandi. Yangi misol yozing:")
+# 🎬 Asl Media Qidiruv
+@bot.message_handler(func=lambda message: message.text == "🎬 Asl Media")
+def asl_search_start(message):
+    msg = bot.send_message(message.chat.id, "🎬 **Asl Media** saytidan qidirish uchun kino nomini yozing:")
+    bot.register_next_step_handler(msg, process_asl_search)
 
-    elif text == "=":
-        try:
-            res = eval(user_data[cid].replace('^', '**'))
-            bot.send_message(cid, f"🔢 Natija: `{res}`", parse_mode="Markdown")
-            user_data[cid] = str(res)
-        except:
-            bot.send_message(cid, "❌ Xato! Misolni tekshiring.")
-            user_data[cid] = ""
+def process_asl_search(message):
+    movie_name = message.text
+    search_url = f"https://aslmedia.net/index.php?do=search&subaction=search&story={movie_name.replace(' ', '+')}"
+    
+    markup = types.InlineKeyboardMarkup()
+    btn = types.InlineKeyboardButton("🌐 AslMedia'da Ko'rish", url=search_url)
+    markup.add(btn)
+    
+    bot.send_message(message.chat.id, f"🍿 **{movie_name}** kinosi AslMedia bazasidan qidirildi:", reply_markup=markup, parse_mode="Markdown")
 
-    elif text in "0123456789+-*/.":
-        user_data[cid] += text
-        # Har bir raqam bosilganda hozirgi holatni ko'rsatib turish
-        bot.send_message(cid, f"📝 `{user_data[cid]}`", parse_mode="Markdown")
+# 📺 Yangi TV Qidiruv
+@bot.message_handler(func=lambda message: message.text == "📺 Yangi TV")
+def yangi_search_start(message):
+    msg = bot.send_message(message.chat.id, "📺 **Yangi TV** platformasidan qidirish uchun kino nomini yozing:")
+    bot.register_next_step_handler(msg, process_yangi_search)
+
+def process_yangi_search(message):
+    movie_name = message.text
+    # Yangi TV qidiruv formati (agar sayti bo'lsa shunday bo'ladi)
+    search_url = f"https://yangitv.uz/search?q={movie_name.replace(' ', '+')}"
+    
+    markup = types.InlineKeyboardMarkup()
+    btn = types.InlineKeyboardButton("🌐 Yangi TV'da Ko'rish", url=search_url)
+    markup.add(btn)
+    
+    bot.send_message(message.chat.id, f"📡 **{movie_name}** kinosi Yangi TV platformasidan qidirildi:", reply_markup=markup, parse_mode="Markdown")
+
+# ℹ️ Ma'lumot Bo'limi
+@bot.message_handler(func=lambda message: message.text == "ℹ️ Ma'lumot")
+def info_page(message):
+    info_text = (
+        "🤖 **Bot haqida:**\n"
+        "UmirovKino bot orqali siz internetdagi eng mashhur o'zbekcha kino saytlaridan tezkor qidiruv amalga oshirishingiz mumkin.\n\n"
+        "👨‍💻 **Dasturchi:** @umirovDev_bot\n"
+        "🚀 **Versiya:** 2.0 (Kino Edition)"
+    )
+    bot.send_message(message.chat.id, info_text, parse_mode="Markdown")
+
+# Har qanday boshqa matn kelsa
+@bot.message_handler(func=lambda message: True)
+def echo_all(message):
+    bot.send_message(message.chat.id, "👇 Iltimos, menyudagi tugmalardan foydalaning:", reply_markup=main_menu())
 
 if __name__ == "__main__":
-    bot.remove_webhook()
+    print("UmirovKino Bot ishga tushdi...")
     bot.infinity_polling()
